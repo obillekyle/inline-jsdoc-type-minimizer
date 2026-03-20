@@ -4,6 +4,11 @@
   "description": "Minimizes jsdoc inline types ",
   "version": "0.0.1",
   "publisher": "obillekyle",
+  "repository": {
+    "type": "git",
+    "url": "https://www.github.com/obillekyle/inline-jsdoc-type-minimizer"
+  },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.110.0"
   },
