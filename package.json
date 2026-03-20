@@ -11,13 +11,35 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:javascript"
+    "onLanguage:javascript",
+    "onLanguage:html"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "inline-jsdoc-type-minimizer.toggle",
+        "title": "Inline JSDoc Type Minimizer: Toggle Enable"
+      }
+    ],
     "configuration": {
       "title": "Inline JSDoc Type Minimizer",
       "properties": {
+        "inline-jsdoc-type-minimizer.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the extension."
+        },
+        "inline-jsdoc-type-minimizer.collapseTypes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Collapse union/intersection types (e.g. <type|+1>)."
+        },
+        "inline-jsdoc-type-minimizer.collapseObjects": {
+          "type": "boolean",
+          "default": true,
+          "description": "Collapse object properties (e.g. <{key: value, +1}>)."
+        },
         "inline-jsdoc-type-minimizer.bracketColor": {
           "type": "string",
           "default": "",

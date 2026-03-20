@@ -5,10 +5,36 @@ export function activate(context: vscode.ExtensionContext) {
     textDecoration: 'none; display: none;',
   });
 
+  const toggleCommand = vscode.commands.registerCommand(
+    'inline-jsdoc-type-minimizer.toggle',
+    async () => {
+      const config = vscode.workspace.getConfiguration(
+        'inline-jsdoc-type-minimizer',
+      );
+      const current = config.get<boolean>('enabled');
+      await config.update('enabled', !current, true);
+    },
+  );
+  context.subscriptions.push(toggleCommand);
+
   function updateDecorations() {
     const editor = vscode.window.activeTextEditor;
 
-    if (!editor || editor.document.languageId !== 'javascript') {
+    if (
+      !editor ||
+      (editor.document.languageId !== 'javascript' &&
+        editor.document.languageId !== 'html')
+    ) {
+      return;
+    }
+
+    const config = vscode.workspace.getConfiguration(
+      'inline-jsdoc-type-minimizer',
+    );
+
+    // Check if extension is enabled
+    if (config.get<boolean>('enabled') === false) {
+      editor.setDecorations(hiddenTextDecoration, []);
       return;
     }
 
@@ -17,12 +43,11 @@ export function activate(context: vscode.ExtensionContext) {
       /\/\*\*\s*@type\s*{([\s\S]*?)}\s*\*\/\s*(?=\(\s*([a-zA-Z0-9_$.]+)?)/g;
     const decorations: vscode.DecorationOptions[] = [];
 
-    const config = vscode.workspace.getConfiguration(
-      'inline-jsdoc-type-minimizer',
-    );
     const bracketColor =
       config.get<string>('bracketColor') ||
       new vscode.ThemeColor('editorInlayHint.foreground');
+    const collapseTypes = config.get<boolean>('collapseTypes') !== false;
+    const collapseObjects = config.get<boolean>('collapseObjects') !== false;
 
     const diagnostics = vscode.languages.getDiagnostics(editor.document.uri);
     const errors = diagnostics.filter(
@@ -103,15 +128,19 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
 
-      if (topLevelOrs > 0 && topLevelAnds > 0) {
+      if (collapseTypes && topLevelOrs > 0 && topLevelAnds > 0) {
         typeName = `mixed+${topLevelOrs + topLevelAnds}`;
-      } else if (topLevelOrs > 0) {
+      } else if (collapseTypes && topLevelOrs > 0) {
         const firstType = typeName.substring(0, firstSeparatorIndex).trim();
         typeName = `${firstType}|+${topLevelOrs}`;
-      } else if (topLevelAnds > 0) {
+      } else if (collapseTypes && topLevelAnds > 0) {
         const firstType = typeName.substring(0, firstSeparatorIndex).trim();
         typeName = `${firstType}&+${topLevelAnds}`;
-      } else if (typeName.startsWith('{') && typeName.endsWith('}')) {
+      } else if (
+        collapseObjects &&
+        typeName.startsWith('{') &&
+        typeName.endsWith('}')
+      ) {
         const innerProps = typeName.slice(1, -1).trim();
 
         let depth = 0;
@@ -196,6 +225,16 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.window.onDidChangeTextEditorSelection(
     (event) => {
       if (event.textEditor === vscode.window.activeTextEditor) {
+        updateDecorations();
+      }
+    },
+    null,
+    context.subscriptions,
+  );
+
+  vscode.workspace.onDidChangeConfiguration(
+    (e) => {
+      if (e.affectsConfiguration('inline-jsdoc-type-minimizer')) {
         updateDecorations();
       }
     },
