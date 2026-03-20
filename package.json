@@ -52,7 +52,19 @@
           "description": "The exact hex color for your angle brackets."
         }
       }
-    }
+    },
+    "colors": [
+      {
+        "id": "inlineJsdoc.typeColor",
+        "description": "Color for the minimized inline types",
+        "defaults": {
+          "dark": "#4EC9B0",
+          "light": "#267F99",
+          "highContrast": "#4EC9B0",
+          "highContrastLight": "#267F99"
+        }
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

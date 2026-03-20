@@ -1,16 +1,26 @@
 import * as vscode from 'vscode';
 
+const EXTENSION_ID = 'inline-jsdoc-type-minimizer';
+const LANGUAGE_IDS = ['javascript', 'html'];
+
+const TYPE_REGEX =
+  /\/\*\*[ \t]*@type[ \t]*{([^\r\n]*?)}[ \t]*\*\/[ \t]*(?=\r?\n|\()/g;
+const IMPORT_REGEX = /import\(['"]([^'"]+)['"]\)(?:\.([a-zA-Z0-9_]+))?/g;
+
 export function activate(context: vscode.ExtensionContext) {
-  const hiddenTextDecoration = vscode.window.createTextEditorDecorationType({
-    textDecoration: 'none; display: none;',
+  const newDecorType = vscode.window.createTextEditorDecorationType;
+
+  const lBracketDecorType = newDecorType({});
+  const typeNameDecorType = newDecorType({});
+  const rBracketDecorType = newDecorType({});
+  const hideTextDecorType = newDecorType({
+    textDecoration: 'none; font-size: 0.001em; opacity: 0;',
   });
 
   const toggleCommand = vscode.commands.registerCommand(
-    'inline-jsdoc-type-minimizer.toggle',
+    EXTENSION_ID + '.toggle',
     async () => {
-      const config = vscode.workspace.getConfiguration(
-        'inline-jsdoc-type-minimizer',
-      );
+      const config = vscode.workspace.getConfiguration(EXTENSION_ID);
       const current = config.get<boolean>('enabled');
       await config.update('enabled', !current, true);
     },
@@ -20,28 +30,27 @@ export function activate(context: vscode.ExtensionContext) {
   function updateDecorations() {
     const editor = vscode.window.activeTextEditor;
 
-    if (
-      !editor ||
-      (editor.document.languageId !== 'javascript' &&
-        editor.document.languageId !== 'html')
-    ) {
+    if (!editor || !LANGUAGE_IDS.includes(editor.document.languageId)) {
       return;
     }
 
-    const config = vscode.workspace.getConfiguration(
-      'inline-jsdoc-type-minimizer',
-    );
+    const config = vscode.workspace.getConfiguration(EXTENSION_ID);
 
-    // Check if extension is enabled
     if (config.get<boolean>('enabled') === false) {
-      editor.setDecorations(hiddenTextDecoration, []);
+      editor.setDecorations(hideTextDecorType, []);
+      editor.setDecorations(lBracketDecorType, []);
+      editor.setDecorations(typeNameDecorType, []);
+      editor.setDecorations(rBracketDecorType, []);
       return;
     }
 
     const text = editor.document.getText();
-    const regex =
-      /\/\*\*\s*@type\s*{([\s\S]*?)}\s*\*\/\s*(?=\(\s*([a-zA-Z0-9_$.]+)?)/g;
-    const decorations: vscode.DecorationOptions[] = [];
+    const regex = new RegExp(TYPE_REGEX);
+
+    const lBracketDecors: vscode.DecorationOptions[] = [];
+    const typeNameDecors: vscode.DecorationOptions[] = [];
+    const rBracketDecors: vscode.DecorationOptions[] = [];
+    const hideTextDecors: vscode.DecorationOptions[] = [];
 
     const bracketColor =
       config.get<string>('bracketColor') ||
@@ -54,43 +63,27 @@ export function activate(context: vscode.ExtensionContext) {
       (d) => d.severity === vscode.DiagnosticSeverity.Error,
     );
 
-    let match;
-    while ((match = regex.exec(text))) {
-      const startPos = editor.document.positionAt(match.index);
-      const endPos = editor.document.positionAt(match.index + match[0].length);
-      const matchRange = new vscode.Range(startPos, endPos);
-
-      const hasError = errors.some((diagnostic) => {
-        return matchRange.intersection(diagnostic.range) !== undefined;
-      });
-
-      const finalColor = hasError
-        ? new vscode.ThemeColor('editorError.foreground')
-        : bracketColor;
-
-      const isRevealed = editor.selections.some((selection) => {
-        return (
+    let m;
+    while ((m = regex.exec(text))) {
+      const startPos = editor.document.positionAt(m.index);
+      const endAtPos = editor.document.positionAt(m.index + m[0].length);
+      const atRanges = new vscode.Range(startPos, endAtPos);
+      const hasError = errors.some(
+        ({ range }) => atRanges.intersection(range) !== undefined,
+      );
+      const revealed = editor.selections.some(
+        (selection) =>
           selection.start.line <= startPos.line &&
-          selection.end.line >= startPos.line
-        );
-      });
+          selection.end.line >= startPos.line,
+      );
 
-      if (isRevealed) {
-        continue;
-      }
+      if (revealed) continue;
 
-      const originalType = match[1].trim();
-      const variableName = match[2] ? match[2] : 'value';
-
+      const originalType = m[1].trim();
       let typeName = originalType;
 
-      typeName = typeName.replace(
-        /import\(['"]([^'"]+)['"]\)(?:\.([a-zA-Z0-9_]+))?/g,
-        (fullMatch, modulePath, exportName) => {
-          return exportName
-            ? exportName
-            : modulePath.split('/').pop() || 'import';
-        },
+      typeName = typeName.replace(IMPORT_REGEX, (_, modulePath, exportName) =>
+        exportName ? exportName : modulePath.split('/').pop() || 'import',
       );
 
       let typeDepth = 0;
@@ -116,26 +109,31 @@ export function activate(context: vscode.ExtensionContext) {
           case '|':
             if (typeDepth === 0) {
               topLevelOrs++;
-              if (firstSeparatorIndex === -1) firstSeparatorIndex = i;
+              if (firstSeparatorIndex === -1) {
+                firstSeparatorIndex = i;
+              }
             }
             break;
           case '&':
             if (typeDepth === 0) {
               topLevelAnds++;
-              if (firstSeparatorIndex === -1) firstSeparatorIndex = i;
+              if (firstSeparatorIndex === -1) {
+                firstSeparatorIndex = i;
+              }
             }
             break;
         }
       }
 
-      if (collapseTypes && topLevelOrs > 0 && topLevelAnds > 0) {
-        typeName = `mixed+${topLevelOrs + topLevelAnds}`;
-      } else if (collapseTypes && topLevelOrs > 0) {
-        const firstType = typeName.substring(0, firstSeparatorIndex).trim();
-        typeName = `${firstType}|+${topLevelOrs}`;
-      } else if (collapseTypes && topLevelAnds > 0) {
-        const firstType = typeName.substring(0, firstSeparatorIndex).trim();
-        typeName = `${firstType}&+${topLevelAnds}`;
+      if (collapseTypes && (topLevelOrs > 0 || topLevelAnds > 0)) {
+        if (topLevelOrs > 0 && topLevelAnds > 0) {
+          typeName = `mixed+${topLevelOrs + topLevelAnds}`;
+        } else {
+          const firstType = typeName.substring(0, firstSeparatorIndex).trim();
+          typeName = `${firstType}${topLevelOrs > 0 ? '|' : '&'}+${
+            topLevelOrs || topLevelAnds
+          }`;
+        }
       } else if (
         collapseObjects &&
         typeName.startsWith('{') &&
@@ -181,26 +179,54 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
 
-      const hoverMessage = new vscode.MarkdownString();
-      hoverMessage.appendCodeblock(
-        `${variableName}: ${originalType}`,
-        'typescript',
-      );
+      const typeColor = hasError
+        ? new vscode.ThemeColor('editorError.foreground')
+        : new vscode.ThemeColor('inlineJsdoc.typeColor');
 
-      decorations.push({
-        range: matchRange,
-        hoverMessage: hoverMessage,
+      hideTextDecors.push({
+        range: atRanges,
+      });
+
+      const injectionRange = new vscode.Range(startPos, startPos);
+
+      lBracketDecors.push({
+        range: injectionRange,
         renderOptions: {
           before: {
-            contentText: `<${typeName}>`,
-            color: finalColor,
+            contentText: '<',
+            color: bracketColor,
+            fontStyle: 'normal',
+          },
+        },
+      });
+
+      typeNameDecors.push({
+        range: injectionRange,
+        renderOptions: {
+          before: {
+            contentText: typeName,
+            color: typeColor,
+            fontStyle: 'normal',
+          },
+        },
+      });
+
+      rBracketDecors.push({
+        range: injectionRange,
+        renderOptions: {
+          before: {
+            contentText: '>',
+            color: bracketColor,
             fontStyle: 'normal',
           },
         },
       });
     }
 
-    editor.setDecorations(hiddenTextDecoration, decorations);
+    editor.setDecorations(hideTextDecorType, hideTextDecors);
+    editor.setDecorations(lBracketDecorType, lBracketDecors);
+    editor.setDecorations(typeNameDecorType, typeNameDecors);
+    editor.setDecorations(rBracketDecorType, rBracketDecors);
   }
 
   vscode.window.onDidChangeActiveTextEditor(
@@ -211,33 +237,24 @@ export function activate(context: vscode.ExtensionContext) {
 
   vscode.workspace.onDidChangeTextDocument(
     (event) => {
-      if (
-        vscode.window.activeTextEditor &&
-        event.document === vscode.window.activeTextEditor.document
-      ) {
+      vscode.window.activeTextEditor &&
+        event.document === vscode.window.activeTextEditor.document &&
         updateDecorations();
-      }
     },
     null,
     context.subscriptions,
   );
 
   vscode.window.onDidChangeTextEditorSelection(
-    (event) => {
-      if (event.textEditor === vscode.window.activeTextEditor) {
-        updateDecorations();
-      }
-    },
+    (event) =>
+      event.textEditor === vscode.window.activeTextEditor &&
+      updateDecorations(),
     null,
     context.subscriptions,
   );
 
   vscode.workspace.onDidChangeConfiguration(
-    (e) => {
-      if (e.affectsConfiguration('inline-jsdoc-type-minimizer')) {
-        updateDecorations();
-      }
-    },
+    (e) => e.affectsConfiguration(EXTENSION_ID) && updateDecorations(),
     null,
     context.subscriptions,
   );
