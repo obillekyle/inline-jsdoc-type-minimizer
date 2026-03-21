@@ -2,7 +2,7 @@
   "name": "inline-jsdoc-type-minimizer",
   "displayName": "Inline JSDOC Type Minimizer",
   "description": "Minimizes jsdoc inline types ",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "okyle",
   "repository": {
     "type": "git",
