@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inline JSDoc Test</title>
+</head>
+
+<body>
+
+  <p>
+    <!-- This should NOT be parsed because it is outside a script tag -->
+    The following text looks like a jsdoc type but should be ignored:
+    /** @type {string | number} */
+  </p>
+
+  <script>
+    // This should BE parsed since it is inside a script tag
+    const scriptVar = /** @type {boolean | null} */ (true);
+
+    const htmlFunc = (/** @type {string} */ param) => {
+      console.log(param);
+    };
+  </script>
+
+  <div>
+    <!-- Also outside, ignored! -->
+    <span>/** @type {{a: number}} */</span>
+  </div>
+
+  <script>
+    // Second script tag test
+    function testTwo(/** @type {number | undefined} */ optParam = 10) {
+      return optParam * 2;
+    }
+
+    // Long line test inside HTML
+    const htmlLongLine = /** @type {boolean | undefined} */ ("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat........................................................................");
+  </script>
+</body>
+
+</html>

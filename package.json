@@ -2,7 +2,7 @@
   "name": "inline-jsdoc-type-minimizer",
   "displayName": "Inline JSDOC Type Minimizer",
   "description": "Minimizes jsdoc inline types ",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "okyle",
   "repository": {
     "type": "git",
@@ -30,6 +30,11 @@
     "configuration": {
       "title": "Inline JSDoc Type Minimizer",
       "properties": {
+        "inline-jsdoc-type-minimizer.lengthAbort": {
+          "type": "number",
+          "default": 300,
+          "description": "Abort parsing for lines with a character count greater than this value."
+        },
         "inline-jsdoc-type-minimizer.enabled": {
           "type": "boolean",
           "default": true,
@@ -48,8 +53,30 @@
         "inline-jsdoc-type-minimizer.bracketColor": {
           "type": "string",
           "default": "",
-          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+          "pattern": "^$|^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
           "description": "The exact hex color for your angle brackets."
+        },
+        "inline-jsdoc-type-minimizer.maxShownTypes": {
+          "type": "number",
+          "default": 1,
+          "minimum": 1,
+          "description": "The maximum number of types to show for a union or intersection before collapsing."
+        },
+        "inline-jsdoc-type-minimizer.parseFunctionParameters": {
+          "type": "boolean",
+          "default": true,
+          "description": "Transform inline type comments immediately preceding a parameter into postfix parameter type hints (e.g., `param: number`)."
+        },
+        "inline-jsdoc-type-minimizer.typeColor": {
+          "type": "string",
+          "default": "",
+          "pattern": "^$|^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+          "description": "The exact hex color for the minimised type names (optional override)."
+        },
+        "inline-jsdoc-type-minimizer.parseInvalidParametersAsFallback": {
+          "type": "boolean",
+          "default": false,
+          "description": "Parse invalid function parameter JSDoc comments mimicking normal variable types (grayed out) instead of ignoring them."
         }
       }
     },
