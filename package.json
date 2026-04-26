@@ -2,7 +2,7 @@
   "name": "inline-jsdoc-type-minimizer",
   "displayName": "Inline JSDOC Type Minimizer",
   "description": "Minimizes jsdoc inline types ",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "okyle",
   "repository": {
     "type": "git",
@@ -66,6 +66,21 @@
           "type": "boolean",
           "default": true,
           "description": "Transform inline type comments immediately preceding a parameter into postfix parameter type hints (e.g., `param: number`)."
+        },
+        "inline-jsdoc-type-minimizer.inlineAssignments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Transform inline type comments before assignments into inline assignment type hints (e.g., `uid: string = value`)."
+        },
+        "inline-jsdoc-type-minimizer.inlineReadonly": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render `@readonly` inline JSDoc comments as `readonly` in minimized output."
+        },
+        "inline-jsdoc-type-minimizer.inlineTypedefs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render one-line inline JSDoc typedef comments as type aliases (e.g., `type MyType = string;`)."
         },
         "inline-jsdoc-type-minimizer.typeColor": {
           "type": "string",
